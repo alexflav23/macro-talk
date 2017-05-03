@@ -54,9 +54,13 @@ trait MacroHelpers {
     }}
   }
 
-  def printType(tpe: Type): String = showCode(tq"${tpe.dealias}")
-
   def tupleTerm(i: Int): TermName = TermName("_" + (i + 1).toString)
+
+  def isTuple(tpe: Type): Boolean = isTuple(tpe.typeSymbol)
+
+  def isTuple(sym: Symbol): Boolean = {
+    sym.fullName startsWith "scala.Tuple"
+  }
 
   def isCaseClass(tpe: Type): Boolean = isCaseClass(tpe.typeSymbol)
 
@@ -67,14 +71,5 @@ trait MacroHelpers {
   case class Accessor(
     name: TermName,
     paramType: Type
-  ) {
-
-    def typeName: TypeName = paramType.typeSymbol.name.toTypeName
-
-    def typeArgs: List[Type] = paramType.typeArgs
-
-    def tpe: Type = paramType
-
-    def symbol: Symbol = paramType.typeSymbol
-  }
+  )
 }

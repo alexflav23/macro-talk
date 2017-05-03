@@ -15,6 +15,8 @@
  */
 package com.github.alexflav23.macrotalk.macros
 
+import scala.reflect.macros.blackbox
+
 @macrocompat.bundle
 class ShowsMacros(val c: blackbox.Context) extends MacroHelpers {
   import c.universe._
@@ -28,13 +30,13 @@ class ShowsMacros(val c: blackbox.Context) extends MacroHelpers {
 
     tpe match {
       case t if isTuple(tpe) => tupleShows(tpe)
-      case t if isCaseClass(t) => fieldShows(tpe, caseFields(tpe))
+      case t if isCaseClass(t) => fieldShows(tpe, fields(tpe))
 
       case t if tpe <:< typeOf[Option[_]] => tpe.typeArgs match {
-        case head :: Nil => q"new $packagePrefix.Showers.OptionTracer[$head]"
+        case head :: Nil => q"new $packagePrefix.Showers.OptionShows[$head]"
         case _ => c.abort(
           c.enclosingPosition,
-          s"Found option type with more than two arguments ${printType(tpe)}"
+          s"Found option type with more than two arguments"
         )
       }
 
@@ -45,10 +47,10 @@ class ShowsMacros(val c: blackbox.Context) extends MacroHelpers {
           case first :: second :: Nil =>
             q"new $packagePrefix.Showers.MapLikeShows[${tpe.typeConstructor}, $first, $second]"
           case _ =>
-            q"new $packagePrefix.Tracers.StringShows[$tpe]"
+            q"new $packagePrefix.Showers.StringShows[$tpe]"
       }
 
-      case _ => q"new $packagePrefix.Tracers.StringShows[$tpe]"
+      case _ => q"new $packagePrefix.Showers.StringShows[$tpe]"
     }
   }
 
@@ -56,16 +58,17 @@ class ShowsMacros(val c: blackbox.Context) extends MacroHelpers {
     val cmp = tpe.typeSymbol.name
 
     val appliers = tpe.typeArgs.zipWithIndex.map { case (tp, i) =>
-      q""" "  " + ${tupleTerm(i).toString} + "= " + $packagePrefix.Tracer[$tp].trace(
-        instance.${tupleTerm(i)}
+      val term = tupleTerm(i)
+      q""" "  " + ${term.toString} + " = " + $packagePrefix.Shows[$tp].show(
+        instance.$term
       )"""
     }
 
     val t = q"_root_.scala.collection.immutable.List.apply(..$appliers)"
 
     q"""
-      new $packagePrefix.Tracer[$tpe] {
-        def trace(instance: $tpe): $stringType = {
+      new $packagePrefix.Shows[$tpe] {
+        def show(instance: $tpe): $stringType = {
           ${cmp.toString} + "(\n" + $t.mkString("\n") + "\n)"
         }
       }
@@ -76,7 +79,7 @@ class ShowsMacros(val c: blackbox.Context) extends MacroHelpers {
     val cmp = tpe.typeSymbol.name
 
     val appliers = fields.map { accessor =>
-      q""" "  " + ${accessor.name.toString} + "= " + $packagePrefix.Tracer[${accessor.tpe}].trace(
+      q""" "  " + ${accessor.name.toString} + " = " + $packagePrefix.Shows[${accessor.paramType}].show(
         instance.${accessor.name}
       )"""
     }
@@ -84,8 +87,8 @@ class ShowsMacros(val c: blackbox.Context) extends MacroHelpers {
     val t = q"_root_.scala.collection.immutable.List.apply(..$appliers)"
 
     q"""
-      new $packagePrefix.Tracer[$tpe] {
-        def trace(instance: $tpe): $stringType = {
+      new $packagePrefix.Shows[$tpe] {
+        def show(instance: $tpe): $stringType = {
           ${cmp.toString} + "(\n" + $t.mkString("\n") + "\n)"
         }
       }

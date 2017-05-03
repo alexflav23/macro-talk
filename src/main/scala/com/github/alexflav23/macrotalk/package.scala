@@ -13,18 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.alexflav23.macrotalk
+ package com.github.alexflav23
 
-trait Shows[In] {
-  def show(z: In): String
-}
+ package object macrotalk {
 
-object Shows {
+   implicit class ShowHelper[T](val obj: T) extends AnyVal {
+     def show()(implicit ev: Shows[T]): String = ev.show(obj)
+   }
 
-  // commonly used trick to give us val ev = Shows[In] syntax, instead of using implicitly.
-  def apply[In](implicit ev: Shows[In]): Shows[In] = ev
-
-
-  // now the fun part. The name of this method doesn't matter.
-  implicit def materialize[In]: Shows[In] = macro macros.ShowsMacros.materialize[In]
-}
+ }
